@@ -26,7 +26,8 @@ class CareerPathsPage:
 
     def go_to_career_paths(self):
         career_nav = self.page.locator(self.CAREER_NAV_XPATH)
-        career_nav.wait_for(state="visible", timeout=60000)
+        # Avoid strict mode violations by operating on the first matched element
+        career_nav.first.wait_for(state="visible", timeout=60000)
         try:
             career_nav.first.hover()
             time.sleep(3)

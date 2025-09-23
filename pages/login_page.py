@@ -25,3 +25,16 @@ class LoginPage:
         self.page.locator(self.PASSWORD_INPUT_XPATH).fill(self.password)
         self.page.locator(self.LOGIN_BUTTON_XPATH).wait_for(state="attached", timeout=30000)
         self.page.locator(self.LOGIN_BUTTON_XPATH).click()
+        # Wait for app to load after login. Prefer networkidle then check for Community nav.
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=30000)
+        except Exception:
+            pass
+        # Some environments may take longer to render the main nav; try waiting for the Community button.
+        try:
+            self.page.locator("//button[contains(@class,'navItemTitle') and @aria-label='Community']").wait_for(
+                state="visible", timeout=30000
+            )
+        except Exception:
+            # Not fatal — callers already perform checks, but this reduces race conditions.
+            pass
