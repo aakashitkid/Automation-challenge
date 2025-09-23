@@ -25,7 +25,7 @@ from pages.community_page import CommunityPage
 from pages.jobs_page import JobsPage
 
 # Credentials and login URL
-USER_EMAIL = "aakash@expf.com"
+USER_EMAIL = "ashishkk@gmail.com"
 USER_PASSWORD = "Automation@123"
 LOGIN_URL = "https://basecopy5.staging.pg-test.com/hub/newhub503949860203/auth/sign-in"
 
@@ -72,10 +72,8 @@ def test_rotate_by_index_nonheadless():
         CommunityPage(page).send_and_verify_message(next_index, save_next_index)
 
         # Jobs (one line)
-        job_xpaths = [
-            (SOFTWARE_JOB_CARD_XPATH, SOFTWARE_JOB_TITLE_XPATH, "Software Developer card"),
-            (SOFTWARE_ENG_CARD_XPATH, SOFTWARE_ENG_TITLE_XPATH, "Software Engineer card"),
-        ]
-        JobsPage(page).extract_and_print_all_jobs(job_xpaths, max_contacts=3)
+        # Specify how many contacts to extract for each job card (by order on the page)
+        max_contacts_list = [4, 2]
+        JobsPage(page).extract_and_print_all_jobs(max_contacts_list)
         context.close()
         browser.close()
