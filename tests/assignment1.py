@@ -7,7 +7,7 @@ from pages.community_page import CommunityPage
 from pages.jobs_page import JobsPage
 
 # Credentials and login URL
-USER_EMAIL = "aakashitkid@gmail.com"
+USER_EMAIL = "aakash1@gmail.com"
 USER_PASSWORD = "Automation@123"
 LOGIN_URL = "https://basecopy5.staging.pg-test.com/hub/newhub503949860203/auth/sign-in"
 

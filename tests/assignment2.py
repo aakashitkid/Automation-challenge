@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 from pages.login_page import LoginPage
 from pages.career_paths_page import CareerPathsPage
 
-USER_EMAIL = "ashishkk@gmail.com"
+USER_EMAIL = "aakash1@gmail.com"
 USER_PASSWORD = "Automation@123"
 LOGIN_URL = "https://basecopy5.staging.pg-test.com/hub/newhub503949860203/auth/sign-in"
 
