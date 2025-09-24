@@ -63,30 +63,142 @@ class CareerPathsPage:
 
     def visit_first_n_career_cards(self, n=3):
         card_names = []
-        for idx in range(n):
-            if idx > 0:
-                card_to_scroll = self.page.get_by_role("button", name="View career path").nth(idx)
-                card_to_scroll.scroll_into_view_if_needed()
-                time.sleep(0.5)
-            card_title = self.page.get_by_role("button", name="View career path").nth(idx).evaluate(
-                "el => el.closest('.careerCardV2Wrapper__cg_VH').querySelector('a.title__NqdfV')?.innerText || '(no title found)'"
-            )
-            card_names.append(card_title.strip())
-            self.page.get_by_role("button", name="View career path").nth(idx).click(force=True)
-            # Wait for and click the breadcrumb to return
-            breadcrumb = self.page.locator(self.CAREER_PATH_BREADCRUMB_XPATH)
-            breadcrumb.wait_for(state="visible", timeout=10000)
-            breadcrumb.first.click()
-            time.sleep(1)
+        visited_set = set()
+
+        for _ in range(n):
+            # find all career card wrappers and pick the first whose title we haven't visited
+            cards = self.page.locator('.careerCardV2Wrapper__cg_VH')
+            found_card = None
+            for i in range(cards.count()):
+                card = cards.nth(i)
+                try:
+                    title_el = card.locator(self.CARD_TITLE_SELECTOR)
+                    if title_el.count() == 0:
+                        continue
+                    title = title_el.first.inner_text().strip()
+                except Exception:
+                    continue
+                if title not in visited_set:
+                    found_card = card
+                    card_name = title
+                    break
+
+            if not found_card:
+                # no more unique cards found
+                break
+
+            # scroll the card into view and click its internal 'View career path' button
+            try:
+                found_card.scroll_into_view_if_needed()
+            except Exception:
+                pass
+            time.sleep(0.3)
+
+            # click the 'View career path' button inside the card
+            try:
+                view_btn = found_card.get_by_role('button', name='View career path')
+                view_btn.click(force=True)
+            except Exception:
+                # fallback: click any button inside the card
+                try:
+                    found_card.locator("button").first.click(force=True)
+                except Exception:
+                    pass
+
+            # wait for navigation and breadcrumb, then return
+            try:
+                breadcrumb = self.page.locator(self.CAREER_PATH_BREADCRUMB_XPATH)
+                breadcrumb.wait_for(state='visible', timeout=15000)
+                # stabilize a bit to allow server-side 'recently viewed' update
+                time.sleep(1.2)
+                breadcrumb.first.click()
+            except Exception:
+                # attempt a safe navigation back to home
+                try:
+                    self.page.go_back()
+                except Exception:
+                    pass
+
+            # small pause to allow UI to refresh
+            time.sleep(1.0)
+
+            card_names.append(card_name)
+            visited_set.add(card_name)
+
         return card_names
 
     def go_home_and_scroll_recently_viewed(self):
         home_btn = self.page.locator("xpath=//button[contains(@class,'navItemTitle') and @aria-label='Home']")
         home_btn.first.click()
-        recently_viewed = self.page.locator("xpath=//*[contains(translate(normalize-space(text()),'RECENTLY','recently'),'recently viewed careers')]")
-        recently_viewed.wait_for(state="visible", timeout=10000)
-        recently_viewed.scroll_into_view_if_needed()
-        time.sleep(3)
+        # Robustly find the "Recently viewed" section by scrolling the page in viewport-sized steps
+        RECENTLY_XPATH = "//*[contains(translate(normalize-space(text()),'RECENTLY','recently'),'recently')]"
+        found = False
+        # give the page a bit of time to render after clicking Home
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=10000)
+        except Exception:
+            pass
+
+        for attempt in range(40):
+            rv = self.page.locator(f"xpath={RECENTLY_XPATH}")
+            try:
+                count = rv.count()
+            except Exception:
+                count = 0
+
+            if count > 0:
+                for i in range(count):
+                    try:
+                        text = rv.nth(i).inner_text().strip()
+                        if 'recently' in text.lower():
+                            rv.nth(i).scroll_into_view_if_needed()
+                            # small stabilization pause
+                            time.sleep(0.8)
+                            found = True
+                            break
+                    except Exception:
+                        pass
+                if found:
+                    break
+
+            # scroll by one viewport height (more reliable than small wheel deltas)
+            try:
+                self.page.evaluate("window.scrollBy(0, window.innerHeight)")
+            except Exception:
+                try:
+                    self.page.mouse.wheel(0, 800)
+                except Exception:
+                    pass
+            time.sleep(0.5)
+
+        if not found:
+            # Fallback 1: try clicking Home again and give more time
+            try:
+                home_btn.first.click()
+                time.sleep(1)
+                self.page.evaluate("window.scrollTo(0, 0)")
+                for _ in range(20):
+                    rv = self.page.locator(f"xpath={RECENTLY_XPATH}")
+                    if rv.count() > 0:
+                        rv.first.scroll_into_view_if_needed()
+                        found = True
+                        break
+                    self.page.evaluate("window.scrollBy(0, window.innerHeight)")
+                    time.sleep(0.5)
+            except Exception:
+                pass
+
+        if not found:
+            # Final fallback: try the stricter locator with a longer wait
+            try:
+                fallback = self.page.locator("xpath=//*[contains(translate(normalize-space(text()),'RECENTLY','recently'),'recently viewed careers')]")
+                fallback.wait_for(state="visible", timeout=30000)
+                fallback.scroll_into_view_if_needed()
+                found = True
+            except Exception:
+                print("[WARNING] Could not find the 'Recently viewed' section after multiple scroll attempts.")
+
+        time.sleep(1)
 
     def get_recently_viewed_card_names(self, n=3):
         all_cards = self.page.locator('.careerCardV2Wrapper__cg_VH')
